@@ -3,12 +3,18 @@ name: "EPIC AI"
 description: "Epic Systems AI 전략 벤치마크, 국내외 의료 IT 혁신"
 enabled: true
 
-channel1_feedly_opml:
-  folder: "EPIC AI"
-  opml_file: config/feedly.opml
+# 채널 1: Feedly 구독 피드
+# - Becker's Hospital Review: RSS 접근 차단 (403)
+# - Healthcare IT News: 채널 2로 이동
+# (Feedly Pro 업그레이드 시 아래 주석 해제)
+# channel1_feedly_opml:
+#   folder: "EPIC AI"
+#   opml_file: config/feedly.opml
 
 channel2_rss:
   sources:
+    - name: "Healthcare IT News"
+      url: "https://www.healthcareitnews.com/rss.xml"
     - name: "STAT News"
       url: "https://www.statnews.com/feed/"
     - name: "Modern Healthcare"

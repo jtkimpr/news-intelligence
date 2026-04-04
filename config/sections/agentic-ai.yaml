@@ -3,9 +3,14 @@ name: "Agentic AI"
 description: "기업용 AI 에이전트 트렌드 및 도입 사례"
 enabled: true
 
-channel1_feedly_opml:
-  folder: "Agentic AI"
-  opml_file: config/feedly.opml
+# 채널 1: Feedly 구독 피드
+# - The Rundown AI: 공개 RSS 없음 (뉴스레터 전용)
+# - Andreessen Horowitz: Feedly에서 Unreachable
+# → 무료 플랜에서 접근 가능한 피드 없음. 채널 2로 보완.
+# (Feedly Pro 업그레이드 시 아래 주석 해제)
+# channel1_feedly_opml:
+#   folder: "Agentic AI"
+#   opml_file: config/feedly.opml
 
 channel2_rss:
   sources:

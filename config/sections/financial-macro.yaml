@@ -3,12 +3,18 @@ name: "Financial Macro"
 description: "S&P500·Nasdaq·미국 장기채 관련 매크로 동향 및 자산배분 인사이트"
 enabled: true
 
-channel1_feedly_opml:
-  folder: "Financial Macro"
-  opml_file: config/feedly.opml
+# 채널 1: Feedly 구독 피드 → 접근 가능한 것은 채널 2로 이동
+# (Feedly Pro 업그레이드 시 아래 주석 해제)
+# channel1_feedly_opml:
+#   folder: "Financial Macro"
+#   opml_file: config/feedly.opml
 
 channel2_rss:
   sources:
+    - name: "MarketWatch Top Stories"
+      url: "https://feeds.marketwatch.com/marketwatch/topstories/"
+    - name: "Beyond The Cycle"
+      url: "https://beyondthecycle.substack.com/feed"
     - name: "A Wealth of Common Sense"
       url: "https://awealthofcommonsense.com/feed/"
     - name: "Meb Faber Research"
