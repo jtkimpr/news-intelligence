@@ -8,8 +8,13 @@
 </head>
 <body>
   <header>
-    <h1>News Intelligence</h1>
-    <p class="subtitle" id="generated-at"></p>
+    <div class="header-row">
+      <div>
+        <h1>News Intelligence</h1>
+        <p class="subtitle" id="generated-at"></p>
+      </div>
+      <button class="btn-settings" onclick="openSettings()" title="설정">⚙️</button>
+    </div>
   </header>
 
   <nav id="section-tabs">
@@ -21,6 +26,18 @@
     <!-- 카드는 JS에서 동적 렌더링 -->
   </main>
 
+  <!-- 설정 패널 (오버레이) -->
+  <div id="settings-panel" style="display:none">
+    <div class="settings-modal">
+      <div class="settings-modal-header">
+        <span class="settings-title">설정</span>
+        <button class="btn-icon settings-close" onclick="closeSettings()">✕</button>
+      </div>
+      <div class="settings-modal-body" id="settings-body"></div>
+    </div>
+  </div>
+
   <script src="assets/app.js"></script>
+  <script src="assets/settings.js"></script>
 </body>
 </html>

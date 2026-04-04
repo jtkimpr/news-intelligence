@@ -30,14 +30,12 @@ def load_configs():
     with open('config/settings.yaml') as f:
         settings = yaml.safe_load(f)
 
+    import json
+    with open('config/sections.json', encoding='utf-8') as f:
+        sections_data = json.load(f)
+
     section_configs = {}
-    section_dir = 'config/sections'
-    # 알파벳 순이 아닌 원하는 순서 유지를 위해 고정 순서 사용
-    for fname in sorted(os.listdir(section_dir)):
-        if not fname.endswith('.yaml'):
-            continue
-        with open(os.path.join(section_dir, fname)) as f:
-            s = yaml.safe_load(f)
+    for s in sections_data.get('sections', []):
         if s.get('enabled', True):
             section_configs[s['id']] = s
 
@@ -92,6 +90,23 @@ def notify_mac(title: str, message: str):
         pass
 
 
+def git_pull() -> bool:
+    """실행 전 최신 설정(config/sections.json) 반영을 위해 git pull"""
+    try:
+        result = subprocess.run(
+            ['git', 'pull', '--ff-only'],
+            capture_output=True, text=True
+        )
+        if result.returncode == 0:
+            print(f"[git] pull 완료: {result.stdout.strip() or 'Already up to date.'}")
+        else:
+            print(f"[warn] git pull 실패 (계속 진행): {result.stderr.strip()}")
+        return True
+    except Exception as e:
+        print(f"[warn] git pull 오류 (계속 진행): {e}")
+        return False
+
+
 def main():
     start_time = datetime.now(timezone.utc)
     date_str = start_time.strftime('%Y-%m-%d')
@@ -100,6 +115,9 @@ def main():
     print(f"{'='*50}")
 
     try:
+        # 0. git pull (최신 설정 반영)
+        git_pull()
+
         # 1. 설정 로드
         settings, section_configs = load_configs()
         max_per_section = settings.get('pipeline', {}).get('max_articles_per_section', 20)
