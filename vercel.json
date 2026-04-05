@@ -1,6 +1,1 @@
-{
-  "outputDirectory": "website",
-  "functions": {
-    "api/config.js": {}
-  }
-}
+{}
