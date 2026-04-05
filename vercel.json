@@ -1,5 +1,11 @@
 {
-  "rewrites": [
-    { "source": "/((?!api/).*)", "destination": "/website/$1" }
+  "version": 2,
+  "builds": [
+    { "src": "api/config.js",  "use": "@vercel/node"   },
+    { "src": "website/**",     "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "src": "/api/config",    "dest": "/api/config.js" },
+    { "src": "/(.*)",          "dest": "/website/$1"    }
   ]
 }
