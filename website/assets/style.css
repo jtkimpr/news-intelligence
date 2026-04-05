@@ -90,13 +90,7 @@ header h1 {
   color: #888;
 }
 
-.channel-badge {
-  background: #f0f0f0;
-  border-radius: 4px;
-  padding: 2px 7px;
-  font-size: 11px;
-  color: #555;
-}
+.card-time { font-size: 11px; color: #aaa; }
 
 .card-title {
   font-size: 15px;
@@ -132,6 +126,35 @@ header h1 {
 }
 
 .card-link:hover { text-decoration: underline; }
+
+/* ── 카드 액션 버튼 ─────────────────────────────── */
+.card-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.card:hover .card-actions { opacity: 1; }
+
+.action-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 3px 5px;
+  border-radius: 5px;
+  color: #bbb;
+  line-height: 1;
+  transition: color 0.12s, background 0.12s;
+}
+
+.action-btn:hover { background: #f0f0f0; color: #555; }
+
+.active-like  { color: #e0314b !important; }
+.active-rl    { color: #0071e3 !important; }
+
+.action-delete:hover { background: #fff0f0; color: #e0314b !important; }
 
 /* 섹션 구분선 (전체 탭) */
 .section-header {

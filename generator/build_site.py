@@ -1,39 +1,71 @@
 """
 정적 사이트 생성기
 처리된 articles → website/data/articles.json 갱신
-app.js가 이 JSON을 읽어 카드뉴스를 렌더링
+- 기존 articles.json과 병합 (7일간 누적)
+- 7일 이상 된 기사 자동 삭제
 """
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 
 def build(
     articles: list,
     section_configs: dict,
     output_path: str = 'website/data/articles.json',
-    max_per_section: int = 20,
+    max_age_days: int = 7,
 ) -> dict:
     """
-    articles: Claude 처리 완료된 article dict 리스트
+    articles: Claude 처리 완료된 article dict 리스트 (오늘 새 기사)
     section_configs: {section_id: section_config_dict}
+    기존 articles.json을 로드해 병합하고, max_age_days 초과 기사 제거
     Returns: 생성된 JSON 데이터
     """
-    # 섹션별 그룹화
-    by_section: dict = {}
+    # 1. 기존 articles.json 로드 (누적분)
+    existing_by_id: dict = {}
+    if os.path.exists(output_path):
+        try:
+            with open(output_path, encoding='utf-8') as f:
+                existing_data = json.load(f)
+            for sec in existing_data.get('sections', []):
+                for art in sec.get('articles', []):
+                    if art.get('id'):
+                        existing_by_id[art['id']] = art
+        except Exception:
+            pass
+
+    # 2. 새 기사 추가 (같은 ID면 덮어씀)
     for article in articles:
-        sid = article['section']
-        by_section.setdefault(sid, []).append(article)
+        picked = _pick_fields(article)
+        if picked['id']:
+            existing_by_id[picked['id']] = picked
 
-    # 섹션별 최신순 정렬 + 최대 개수 제한
+    # 3. 7일 초과 기사 제거 (좋아요 예외 처리는 브라우저 localStorage에서 담당)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=max_age_days)
+    all_articles = []
+    for art in existing_by_id.values():
+        pub = art.get('published_at', '')
+        try:
+            pub_dt = datetime.fromisoformat(pub)
+            # timezone-naive인 경우 UTC로 간주
+            if pub_dt.tzinfo is None:
+                pub_dt = pub_dt.replace(tzinfo=timezone.utc)
+            if pub_dt >= cutoff:
+                all_articles.append(art)
+        except Exception:
+            all_articles.append(art)  # 날짜 파싱 실패 시 유지
+
+    # 4. 섹션별 그룹화 + 최신순 정렬
+    by_section: dict = {}
+    for art in all_articles:
+        sid = art.get('section', '')
+        if sid:
+            by_section.setdefault(sid, []).append(art)
+
     for sid in by_section:
-        by_section[sid].sort(
-            key=lambda a: a.get('published_at', ''),
-            reverse=True
-        )
-        by_section[sid] = by_section[sid][:max_per_section]
+        by_section[sid].sort(key=lambda a: a.get('published_at', ''), reverse=True)
 
-    # 섹션 순서: 설정 파일에 등록된 순서 유지
+    # 5. 섹션 순서 유지
     section_order = list(section_configs.keys())
     ordered_sections = []
 
@@ -45,10 +77,9 @@ def build(
             'id': sid,
             'name': cfg.get('name', sid),
             'description': cfg.get('description', ''),
-            'articles': [_pick_fields(a) for a in by_section[sid]],
+            'articles': by_section[sid],
         })
 
-    # section_order에 없는 섹션도 뒤에 추가 (새 섹션 추가 대비)
     for sid, arts in by_section.items():
         if sid not in section_order:
             cfg = section_configs.get(sid, {})
@@ -56,7 +87,7 @@ def build(
                 'id': sid,
                 'name': cfg.get('name', sid),
                 'description': cfg.get('description', ''),
-                'articles': [_pick_fields(a) for a in arts],
+                'articles': arts,
             })
 
     data = {
@@ -75,42 +106,11 @@ def build(
 def _pick_fields(article: dict) -> dict:
     """웹사이트에 필요한 필드만 추출 (raw_content 등 제외)"""
     return {
-        'id':          article.get('id', ''),
-        'title':       article.get('title', ''),
-        'summary_ko':  article.get('summary_ko', ''),
-        'url':         article.get('url', ''),
-        'source_name': article.get('source_name', ''),
-        'channel':     article.get('channel', 0),
+        'id':           article.get('id', ''),
+        'title':        article.get('title', ''),
+        'summary_ko':   article.get('summary_ko', ''),
+        'url':          article.get('url', ''),
+        'source_name':  article.get('source_name', ''),
         'published_at': article.get('published_at', ''),
-        'section':     article.get('section', ''),
+        'section':      article.get('section', ''),
     }
-
-
-if __name__ == '__main__':
-    import yaml, os
-    os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-    # 샘플 데이터로 JSON 구조 테스트
-    section_configs = {}
-    for sec_name in ['agentic-ai', 'epic-ai', 'financial-macro']:
-        with open(f'config/sections/{sec_name}.yaml') as f:
-            s = yaml.safe_load(f)
-            section_configs[s['id']] = s
-
-    # 더미 article로 구조 검증
-    dummy = [{
-        'id': 'test001',
-        'section': 'agentic-ai',
-        'channel': 3,
-        'source_name': 'VentureBeat AI',
-        'title': '테스트 기사 제목',
-        'url': 'https://example.com',
-        'published_at': '2026-04-04T03:00:00+00:00',
-        'summary_ko': '테스트 한국어 요약입니다.',
-    }]
-
-    data = build(dummy, section_configs)
-    print(f"생성 완료: {data['generated_at']}")
-    print(f"섹션 수: {len(data['sections'])}")
-    print(f"총 기사: {data['total_articles']}개")
-    print(f"저장 위치: website/data/articles.json")

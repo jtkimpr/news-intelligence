@@ -120,9 +120,9 @@ def main():
 
         # 1. 설정 로드
         settings, section_configs = load_configs()
-        max_per_section = settings.get('pipeline', {}).get('max_articles_per_section', 20)
         auto_push = settings.get('git', {}).get('auto_push', True)
         db_path = settings.get('dedup', {}).get('url_history_db', 'data/history.db')
+        max_age_days = settings.get('site', {}).get('max_age_days', 7)
 
         # 2. 수집
         print(f"\n{'─'*40}")
@@ -159,7 +159,7 @@ def main():
         # 5. 사이트 JSON 생성
         print(f"\n{'─'*40}")
         print("4단계: 사이트 JSON 생성")
-        data = build_site.build(processed, section_configs, max_per_section=max_per_section)
+        data = build_site.build(processed, section_configs, max_age_days=max_age_days)
         total = data['total_articles']
         for s in data['sections']:
             print(f"  {s['name']:20}: {len(s['articles'])}개")

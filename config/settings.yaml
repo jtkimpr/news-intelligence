@@ -18,6 +18,7 @@ claude:
 site:
   website_dir: website
   data_file: website/data/articles.json
+  max_age_days: 7              # 카드뉴스 보관 기간 (일)
 
 git:
   auto_push: true
