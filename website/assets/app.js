@@ -1,10 +1,11 @@
 let allData = null;
 let activeSection = 'all';
+const articlesById = {};   // id → article 조회용 맵
 
 // ─── localStorage 키 ──────────────────────────────────────────────────────────
-const LS_LIKED       = 'ni_liked';       // {id: articleData} — 좋아요한 기사 전체 데이터
-const LS_DELETED     = 'ni_deleted';     // [id, ...] — 삭제한 기사 ID 목록
-const LS_READ_LATER  = 'ni_read_later';  // {id: articleData} — 나중에 읽기
+const LS_LIKED      = 'ni_liked';       // {id: articleData}
+const LS_DELETED    = 'ni_deleted';     // [id, ...]
+const LS_READ_LATER = 'ni_read_later';  // {id: articleData}
 
 function getLiked()     { return JSON.parse(localStorage.getItem(LS_LIKED)      || '{}'); }
 function getDeleted()   { return JSON.parse(localStorage.getItem(LS_DELETED)    || '[]'); }
@@ -15,8 +16,15 @@ function getReadLater() { return JSON.parse(localStorage.getItem(LS_READ_LATER) 
 async function loadData() {
   const res = await fetch('data/articles.json?_=' + Date.now());
   allData = await res.json();
+
+  // articlesById 맵 구성
+  (allData.sections || []).forEach(sec =>
+    (sec.articles || []).forEach(a => { articlesById[a.id] = a; })
+  );
+
   buildTabs();
   render();
+
   if (allData.generated_at) {
     const d = new Date(allData.generated_at);
     document.getElementById('generated-at').textContent =
@@ -30,31 +38,28 @@ function buildTabs() {
   const nav = document.getElementById('section-tabs');
   nav.innerHTML = '';
 
-  // 고정 탭: Today, 전체
-  addTab(nav, 'today',      'Today',      activeSection === 'today');
-  addTab(nav, 'all',        '전체',        activeSection === 'all');
+  addTab(nav, 'today',       'Today');
+  addTab(nav, 'all',         '전체');
+  (allData.sections || []).forEach(sec => addTab(nav, sec.id, sec.name));
+  addTab(nav, 'read-later',  'Read Later');
 
-  // 동적 섹션 탭
-  (allData.sections || []).forEach(sec => {
-    addTab(nav, sec.id, sec.name, activeSection === sec.id);
-  });
-
-  // 고정 탭: Read Later
-  addTab(nav, 'read-later', 'Read Later', activeSection === 'read-later');
+  // 기본 활성 탭
+  nav.querySelector('[data-section="today"]').classList.add('active');
+  activeSection = 'today';
 
   nav.addEventListener('click', e => {
     const tab = e.target.closest('.tab');
     if (!tab) return;
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    nav.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
     activeSection = tab.dataset.section;
     render();
   });
 }
 
-function addTab(nav, id, label, isActive) {
+function addTab(nav, id, label) {
   const btn = document.createElement('button');
-  btn.className = 'tab' + (isActive ? ' active' : '');
+  btn.className = 'tab';
   btn.dataset.section = id;
   btn.textContent = label;
   nav.appendChild(btn);
@@ -67,15 +72,15 @@ function render() {
   const deleted = new Set(getDeleted());
 
   if (activeSection === 'today') {
-    const articles = getTodayArticles().filter(a => !deleted.has(a.id));
-    grid.innerHTML = articles.length
-      ? articles.map(a => makeCard(a)).join('')
+    const arts = getTodayArticles().filter(a => !deleted.has(a.id));
+    grid.innerHTML = arts.length
+      ? arts.map(makeCard).join('')
       : '<div class="empty-state">오늘 수집된 기사가 없습니다.</div>';
 
   } else if (activeSection === 'read-later') {
-    const articles = getReadLaterArticles().filter(a => !deleted.has(a.id));
-    grid.innerHTML = articles.length
-      ? articles.map(a => makeCard(a)).join('')
+    const arts = getReadLaterArticles().filter(a => !deleted.has(a.id));
+    grid.innerHTML = arts.length
+      ? arts.map(makeCard).join('')
       : '<div class="empty-state">나중에 읽기로 저장된 기사가 없습니다.</div>';
 
   } else if (activeSection === 'all') {
@@ -87,14 +92,14 @@ function render() {
     grid.innerHTML = sections.map(sec => {
       const arts = (sec.articles || []).filter(a => !deleted.has(a.id));
       if (!arts.length) return '';
-      return `<div class="section-header">${sec.name}</div>` + arts.map(a => makeCard(a)).join('');
+      return `<div class="section-header">${sec.name}</div>` + arts.map(makeCard).join('');
     }).join('');
 
   } else {
     const sec = (allData?.sections || []).find(s => s.id === activeSection);
-    const articles = (sec?.articles || []).filter(a => !deleted.has(a.id));
-    grid.innerHTML = articles.length
-      ? articles.map(a => makeCard(a)).join('')
+    const arts = (sec?.articles || []).filter(a => !deleted.has(a.id));
+    grid.innerHTML = arts.length
+      ? arts.map(makeCard).join('')
       : '<div class="empty-state">아직 수집된 기사가 없습니다.</div>';
   }
 }
@@ -111,12 +116,7 @@ function getTodayArticles() {
 
 function getReadLaterArticles() {
   const saved = getReadLater();
-  // 현재 articles.json에 있으면 최신 데이터 우선
-  const currentById = {};
-  (allData?.sections || []).forEach(s =>
-    (s.articles || []).forEach(a => { currentById[a.id] = a; })
-  );
-  return Object.keys(saved).map(id => currentById[id] || saved[id]);
+  return Object.keys(saved).map(id => articlesById[id] || saved[id]);
 }
 
 // ─── 카드 렌더링 ──────────────────────────────────────────────────────────────
@@ -130,61 +130,72 @@ function timeAgo(dateStr) {
 }
 
 function makeCard(article) {
-  const liked     = getLiked();
-  const readLater = getReadLater();
-  const isLiked   = !!liked[article.id];
-  const isRL      = !!readLater[article.id];
+  const id      = article.id;
+  const isLiked = !!getLiked()[id];
+  const isRL    = !!getReadLater()[id];
 
   return `
-    <div class="card" id="card-${article.id}">
+    <div class="card" id="card-${id}">
       <div class="card-meta">
         <span class="card-source">${article.source_name || ''}</span>
         <span class="card-time">${timeAgo(article.published_at)}</span>
       </div>
-      <div class="card-title">${article.title}</div>
+      <a class="card-title-link" href="${article.url}" target="_blank" rel="noopener">
+        <div class="card-title">${article.title}</div>
+      </a>
       <div class="card-summary">${article.summary_ko || ''}</div>
       <div class="card-footer">
-        <a class="card-link" href="${article.url}" target="_blank" rel="noopener">원문 보기 →</a>
         <div class="card-actions">
           <button class="action-btn ${isLiked ? 'active-like' : ''}"
-            onclick="toggleLike(${JSON.stringify(JSON.stringify(article))})"
-            title="${isLiked ? '좋아요 취소' : '좋아요'}">♡</button>
+            data-action="like" data-id="${id}"
+            title="${isLiked ? '좋아요 취소' : '좋아요'}">♥</button>
           <button class="action-btn ${isRL ? 'active-rl' : ''}"
-            onclick="toggleReadLater(${JSON.stringify(JSON.stringify(article))})"
+            data-action="read-later" data-id="${id}"
             title="${isRL ? 'Read Later 취소' : '나중에 읽기'}">🔖</button>
           <button class="action-btn action-delete"
-            onclick="deleteArticle('${article.id}')"
+            data-action="delete" data-id="${id}"
             title="삭제">✕</button>
         </div>
+        <a class="card-link" href="${article.url}" target="_blank" rel="noopener">원문 보기 →</a>
       </div>
     </div>`;
 }
 
-// ─── 카드 액션 ────────────────────────────────────────────────────────────────
+// ─── 카드 액션 (이벤트 위임) ─────────────────────────────────────────────────
 
-function toggleLike(articleJson) {
-  const article = JSON.parse(articleJson);
+document.getElementById('card-grid').addEventListener('click', e => {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  e.preventDefault();
+  const action = btn.dataset.action;
+  const id     = btn.dataset.id;
+  if (action === 'like')        toggleLike(id);
+  else if (action === 'read-later') toggleReadLater(id);
+  else if (action === 'delete') deleteArticle(id);
+});
+
+function toggleLike(id) {
   const liked = getLiked();
-  if (liked[article.id]) {
-    delete liked[article.id];
+  if (liked[id]) {
+    delete liked[id];
   } else {
-    liked[article.id] = article;
+    const article = articlesById[id] || getReadLater()[id];
+    if (article) liked[id] = article;
   }
   localStorage.setItem(LS_LIKED, JSON.stringify(liked));
-  refreshCard(article.id);
+  refreshCard(id);
 }
 
-function toggleReadLater(articleJson) {
-  const article = JSON.parse(articleJson);
+function toggleReadLater(id) {
   const rl = getReadLater();
-  if (rl[article.id]) {
-    delete rl[article.id];
+  if (rl[id]) {
+    delete rl[id];
   } else {
-    rl[article.id] = article;
+    const article = articlesById[id];
+    if (article) rl[id] = article;
   }
   localStorage.setItem(LS_READ_LATER, JSON.stringify(rl));
-  refreshCard(article.id);
-  // Read Later 탭에서 삭제 취소 시 즉시 재렌더
+  refreshCard(id);
   if (activeSection === 'read-later') render();
 }
 
@@ -202,21 +213,13 @@ function deleteArticle(id) {
   delete rl[id];
   localStorage.setItem(LS_READ_LATER, JSON.stringify(rl));
 
-  // 즉시 카드 제거
   const card = document.getElementById('card-' + id);
   if (card) card.remove();
 }
 
 function refreshCard(id) {
-  // 해당 기사를 articles.json 또는 liked에서 찾아 카드만 교체
-  const currentById = {};
-  (allData?.sections || []).forEach(s =>
-    (s.articles || []).forEach(a => { currentById[a.id] = a; })
-  );
-  const liked = getLiked();
-  const article = currentById[id] || liked[id];
+  const article = articlesById[id] || getLiked()[id];
   if (!article) return;
-
   const card = document.getElementById('card-' + id);
   if (card) card.outerHTML = makeCard(article);
 }

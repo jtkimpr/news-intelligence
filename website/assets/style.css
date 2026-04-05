@@ -92,12 +92,19 @@ header h1 {
 
 .card-time { font-size: 11px; color: #aaa; }
 
+.card-title-link {
+  text-decoration: none;
+  color: inherit;
+}
+
 .card-title {
   font-size: 15px;
   font-weight: 600;
   line-height: 1.4;
   color: #1d1d1f;
 }
+
+.card-title-link:hover .card-title { color: #0071e3; }
 
 .card-summary {
   font-size: 13px;
