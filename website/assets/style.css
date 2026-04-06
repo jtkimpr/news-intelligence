@@ -396,15 +396,15 @@ header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
 }
 .kw-hint { font-weight: 400; color: #aaa; font-size: 11px; }
 
-.rss-row, .kw-row {
+.rss-row {
   display: flex;
   gap: 6px;
   margin-bottom: 6px;
   align-items: center;
 }
 .rss-name { width: 130px; flex-shrink: 0; }
-.rss-url, .kw-input { flex: 1; }
-.rss-name, .rss-url, .kw-input {
+.rss-url { flex: 1; }
+.rss-name, .rss-url {
   border: 1px solid #e0e0e0;
   border-radius: 6px;
   padding: 7px 10px;
@@ -412,8 +412,130 @@ header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
   outline: none;
   background: #fff;
 }
-.rss-name:focus, .rss-url:focus, .kw-input:focus { border-color: #0071e3; }
+.rss-name:focus, .rss-url:focus { border-color: #0071e3; }
 .empty-hint { font-size: 12px; color: #bbb; padding: 4px 2px; }
+
+/* ── 채널3 키워드 빌더 ───────────────────────────────── */
+.kw-group {
+  border: 1px solid #e8e8e8;
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: #fafafa;
+}
+.kw-group-or-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0;
+  color: #bbb;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.kw-group-or-divider::before,
+.kw-group-or-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #e8e8e8;
+}
+.kw-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.kw-group-num { font-size: 12px; font-weight: 600; color: #555; }
+
+.kw-row-section {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 7px;
+}
+.kw-type-label {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+  margin-top: 3px;
+  flex-shrink: 0;
+  width: 58px;
+  text-align: center;
+}
+.kw-type-and { background: #e8f3ff; color: #0057b8; }
+.kw-type-or  { background: #e8f5eb; color: #1a7a35; }
+.kw-type-not { background: #fff0f0; color: #c0000a; }
+
+.kw-tags-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+  flex: 1;
+}
+.kw-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.kw-tag-and { background: #ddeeff; color: #0057b8; border: 1px solid #b8d8f5; }
+.kw-tag-or  { background: #d8f0dd; color: #1a7a35; border: 1px solid #aadbb8; }
+.kw-tag-not { background: #ffe5e5; color: #c0000a; border: 1px solid #f5bbbb; }
+.kw-tag-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 10px;
+  color: inherit;
+  opacity: 0.5;
+  padding: 0 1px;
+  line-height: 1;
+}
+.kw-tag-remove:hover { opacity: 1; }
+
+.kw-tag-input {
+  border: 1px dashed #ccc;
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 12px;
+  outline: none;
+  width: 110px;
+  background: #fff;
+}
+.kw-tag-input:focus { border-color: #0071e3; border-style: solid; }
+.kw-tag-input::placeholder { color: #bbb; }
+
+.kw-preview {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #efefef;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.kw-preview-label {
+  font-size: 10px;
+  color: #aaa;
+  white-space: nowrap;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.kw-preview code {
+  font-size: 11px;
+  color: #555;
+  background: #f0f0f0;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: "SF Mono", Consolas, monospace;
+  word-break: break-all;
+}
 
 /* 저장 푸터 */
 .settings-footer {

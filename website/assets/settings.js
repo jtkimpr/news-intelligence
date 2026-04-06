@@ -243,8 +243,7 @@ function renderSectionEditor(idx, isNew = false) {
     <div class="section-block">
       <div class="section-block-title">
         채널3 키워드
-        <span class="kw-hint">AND·OR·NOT 구문 사용 가능</span>
-        <button class="btn-small btn-secondary" onclick="addKeyword(${idx})">+ 추가</button>
+        <button class="btn-small btn-secondary" onclick="addKeyword(${idx})">+ 검색 그룹 추가</button>
       </div>
       <div id="kw-list-${idx}">${kwHtml}</div>
     </div>
@@ -266,6 +265,34 @@ function renderNewSectionEditor() {
   renderSectionEditor(sectionsData.sections.length - 1, true);
 }
 
+// ─── 쿼리 파싱 / 조합 ────────────────────────────────────────────────────────
+
+function parseQuery(str) {
+  const result = { and: [], or: [], not: [] };
+  if (!str || !str.trim()) return result;
+  str.replace(/-(\S+)/g, (_, w) => result.not.push(w));
+  let rem = str.replace(/-\S+/g, '').trim();
+  const orParts = rem.split(/\bOR\b/).map(p => p.trim()).filter(Boolean);
+  if (orParts.length === 1) {
+    result.and = rem.split(/\s+/).filter(Boolean);
+  } else {
+    const first = orParts[0].split(/\s+/).filter(Boolean);
+    const rest  = orParts.slice(1).flatMap(p => p.split(/\s+/).filter(Boolean));
+    if (first.length > 1) { result.and = first; result.or = rest; }
+    else                   { result.or = [...first, ...rest]; }
+  }
+  return result;
+}
+
+function assembleQuery({ and, or, not }) {
+  const parts = [];
+  if (and.length && or.length) parts.push(and.join(' ') + ' OR ' + or.join(' OR '));
+  else if (and.length)         parts.push(and.join(' '));
+  else if (or.length)          parts.push(or.join(' OR '));
+  if (not.length)              parts.push(not.map(t => `-${t}`).join(' '));
+  return parts.join(' ').trim();
+}
+
 // ─── RSS/키워드 HTML 빌더 ─────────────────────────────────────────────────────
 
 function buildRssHtml(idx, sec) {
@@ -285,13 +312,47 @@ function buildRssHtml(idx, sec) {
 function buildKwHtml(idx, sec) {
   const queries = sec.channel3_keywords?.queries || [];
   if (!queries.length) return '<div class="empty-hint">키워드 없음</div>';
-  return queries.map((q, qi) => `
-    <div class="kw-row">
-      <input class="kw-input" type="text" value="${escHtml(q)}" placeholder="검색 키워드"
-        oninput="updateKeyword(${idx},${qi},this.value)" />
-      <button class="btn-icon" onclick="removeKeyword(${idx},${qi})">✕</button>
-    </div>
-  `).join('');
+
+  return queries.map((q, qi) => {
+    const p = parseQuery(q);
+    const orDivider = qi > 0 ? '<div class="kw-group-or-divider">OR</div>' : '';
+
+    const makeSection = (type, label) => {
+      const tags = p[type].map((tag, ti) => `
+        <span class="kw-tag kw-tag-${type}">
+          ${escHtml(tag)}
+          <button class="kw-tag-remove" onclick="removeTag(${idx},${qi},'${type}',${ti})">✕</button>
+        </span>`).join('');
+      return `
+        <div class="kw-row-section">
+          <span class="kw-type-label kw-type-${type}">${label}</span>
+          <div class="kw-tags-wrap">
+            ${tags}
+            <input class="kw-tag-input"
+              id="kw-inp-${idx}-${qi}-${type}"
+              placeholder="입력 후 Enter"
+              onkeydown="if(event.key==='Enter'||event.key===','){event.preventDefault();addTag(${idx},${qi},'${type}',this.value);this.value=''}" />
+          </div>
+        </div>`;
+    };
+
+    const assembled = assembleQuery(p) || '(비어 있음)';
+    return `
+      ${orDivider}
+      <div class="kw-group">
+        <div class="kw-group-header">
+          <span class="kw-group-num">검색 그룹 ${qi + 1}</span>
+          <button class="btn-icon" onclick="removeKeyword(${idx},${qi})">✕ 삭제</button>
+        </div>
+        ${makeSection('and', '모두 포함')}
+        ${makeSection('or',  '하나라도')}
+        ${makeSection('not', '제외')}
+        <div class="kw-preview">
+          <span class="kw-preview-label">쿼리</span>
+          <code>${escHtml(assembled)}</code>
+        </div>
+      </div>`;
+  }).join('');
 }
 
 // ─── 데이터 조작 ──────────────────────────────────────────────────────────────
@@ -302,7 +363,25 @@ function updateSectionEnabled(idx, val) { sectionsData.sections[idx].enabled = v
 
 function updateRssName(si, ri, val) { sectionsData.sections[si].channel2_rss.sources[ri].name = val; }
 function updateRssUrl(si, ri, val)  { sectionsData.sections[si].channel2_rss.sources[ri].url  = val; }
-function updateKeyword(si, ki, val) { sectionsData.sections[si].channel3_keywords.queries[ki] = val; }
+
+function addTag(idx, qi, type, value) {
+  value = value.trim();
+  if (!value) return;
+  const sec = sectionsData.sections[idx];
+  const p = parseQuery(sec.channel3_keywords.queries[qi] || '');
+  if (!p[type].includes(value)) p[type].push(value);
+  sec.channel3_keywords.queries[qi] = assembleQuery(p);
+  document.getElementById(`kw-list-${idx}`).innerHTML = buildKwHtml(idx, sec);
+  setTimeout(() => document.getElementById(`kw-inp-${idx}-${qi}-${type}`)?.focus(), 0);
+}
+
+function removeTag(idx, qi, type, ti) {
+  const sec = sectionsData.sections[idx];
+  const p = parseQuery(sec.channel3_keywords.queries[qi] || '');
+  p[type].splice(ti, 1);
+  sec.channel3_keywords.queries[qi] = assembleQuery(p);
+  document.getElementById(`kw-list-${idx}`).innerHTML = buildKwHtml(idx, sec);
+}
 
 function addRss(idx) {
   const sec = sectionsData.sections[idx];
