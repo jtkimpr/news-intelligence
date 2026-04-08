@@ -1,5 +1,5 @@
 # 전역 설정
-python_bin: /usr/local/bin/python3.13
+python_bin: /opt/homebrew/bin/python3.13
 
 pipeline:
   max_age_hours: 24          # 이 시간 이내 기사만 수집
@@ -10,8 +10,9 @@ dedup:
   url_history_db: data/history.db
   title_similarity_threshold: 0.85  # 제목 유사도 기준
 
-claude:
-  model: claude-haiku-4-5-20251001  # 요약 모델 (품질 원하면 claude-sonnet-4-6으로 변경)
+llm:
+  model: qwen2.5:14b
+  base_url: http://localhost:11434/v1
   max_input_tokens: 1000            # 기사 본문 truncate 기준
   min_relevance_score: 0.6          # 필터링 최소 관련성 점수
 

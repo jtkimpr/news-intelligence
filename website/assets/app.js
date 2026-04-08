@@ -29,8 +29,13 @@ function cleanSummary(text) {
 
 // ─── 데이터 로드 ──────────────────────────────────────────────────────────────
 
+const API_BASE = 'https://api.pigeonbrief.com';
+
 async function loadData() {
-  const res = await fetch('data/articles.json?_=' + Date.now());
+  const token = await window.Clerk.session.getToken();
+  const res = await fetch(`${API_BASE}/api/articles`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
   allData = await res.json();
   (allData.sections || []).forEach(sec =>
     (sec.articles || []).forEach(a => { articlesById[a.id] = a; })
@@ -38,6 +43,11 @@ async function loadData() {
   buildNav();
   render();
 }
+
+// index.html에서 Clerk 인증 완료 후 호출
+window.initApp = function() {
+  loadData();
+};
 
 // ─── 네비게이션 빌드 ──────────────────────────────────────────────────────────
 
@@ -309,4 +319,4 @@ window.showToast = function(msg) {
   setTimeout(() => toast.classList.remove('show'), 3000);
 };
 
-loadData();
+// initApp()은 index.html의 Clerk 인증 완료 후 호출됨
