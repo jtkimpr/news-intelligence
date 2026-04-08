@@ -197,11 +197,44 @@ DB (사용자별 sections/rss/keywords)
 
 ## 남은 작업
 
-현재 기록된 미완료 항목 없음.
+### [미해결] 브라우저에서 API "Failed to fetch" 오류
+- **증상**: `pigeonbrief.com` 로그인 후 앱 화면에서 "데이터를 불러오지 못했어요. Failed to fetch" 표시
+- **확인된 사항**:
+  - FastAPI 백엔드(`localhost:8000`) 정상 동작 ✓
+  - Cloudflare 터널(`api.pigeonbrief.com`) 연결 정상, HTTP 200 응답 ✓
+  - CORS 설정 정상 (`pigeonbrief.com`, `www.pigeonbrief.com` 모두 허용) ✓
+  - SSL 인증서 정상 ✓
+  - `curl`로 API 호출 시 정상 응답, 브라우저에서만 실패
+- **의심 원인**: Chrome 확장(광고차단기 등)이 `api.pigeonbrief.com` 차단 가능성
+- **다음 세션 시도**:
+  1. Chrome 시크릿 모드에서 접속해서 동일 오류 재현 여부 확인
+  2. Chrome DevTools → Network 탭에서 실제 요청 오류 코드 확인
+  3. Chrome DevTools → Console 탭 오류 메시지 확인
 
 ---
 
 ## 주요 변경 이력
+
+### 2026-04-08 (5차)
+
+**신규 사용자 온보딩 위저드 추가 (`website/assets/app.js`, `website/assets/style.css`)**
+- 로그인 후 섹션 없는 신규 사용자에게 `settings.html` 이탈 없이 인라인 3단계 위저드 표시
+- Step 1: 주제 이름/설명 입력 → FastAPI 백엔드로 섹션 생성
+- Step 2: RSS 피드 / 키워드 탭 전환 UI로 소스 등록 (스킵 가능)
+- Step 3: 완료 화면 + "오늘 밤 첫 브리핑 도착" 수집 예약 안내
+- 단계 인디케이터(●—●—●), 태그 목록, API 오류 처리 포함
+- `loadData()`에 try-catch 추가 → 오류 시 "⚠️ 다시 시도" 버튼 표시 (빈 화면 방지)
+
+**인프라 이슈 수정**
+- Cloudflare 터널 plist(`homebrew.mxcl.cloudflared.plist`) 수정:
+  - `ProgramArguments`에 `tunnel run pigeonbrief` 인수 추가 (누락으로 터널 미실행 상태였음)
+  - `LimitLoadToSessionType` 제거 (bootstrap 오류 원인)
+  - `KeepAlive: true` 설정 (프로세스 죽으면 자동 재시작)
+- uvicorn 중복 프로세스 정리: 수동 실행 프로세스가 포트 점유 → launchd 재기동 실패 반복 → 정리 후 launchd 단독 관리로 정상화
+- `com.pigeonbrief.backend.plist` 연결 plist는 정상, launchd로 uvicorn 관리 중
+
+**미커밋 코드 Git 동기화**
+- `pipeline.py`, `processor/claude.py`, `backend/database.py`, `processor/dedup.py` — 이전 세션에서 구현됐으나 미커밋 상태였던 변경사항 푸시 완료
 
 ### 2026-04-08 (4차)
 
