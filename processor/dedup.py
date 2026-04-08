@@ -97,6 +97,28 @@ def mark_as_seen(articles: list, db_path: str = DB_PATH) -> None:
     conn.close()
 
 
+def run_batch(articles: list, title_threshold: float = 0.85) -> tuple:
+    """
+    배치 내 중복 제거만 수행 (seen_urls/history.db 필터 제외)
+    DB 기반 파이프라인에서 사용: seen_urls 필터는 database.filter_seen_urls()로 분리
+    Returns: (deduplicated_articles, stats_dict)
+    """
+    total = len(articles)
+    articles = _filter_duplicate_urls(articles)
+    after_url = len(articles)
+    articles = _filter_similar_titles(articles, title_threshold)
+    after_title = len(articles)
+
+    stats = {
+        'total_collected': total,
+        'removed_history': 0,
+        'removed_url_dup': total - after_url,
+        'removed_title_dup': after_url - after_title,
+        'remaining': after_title,
+    }
+    return articles, stats
+
+
 def run(articles: list, db_path: str = DB_PATH, title_threshold: float = 0.85) -> tuple:
     """
     전체 중복 제거 파이프라인 실행
