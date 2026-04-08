@@ -42,21 +42,9 @@ async function loadData() {
   );
   buildNav();
 
-  // 섹션이 없는 신규 사용자 → 온보딩 안내
+  // 섹션이 없는 신규 사용자 → 온보딩 위저드
   if (!allData.sections || allData.sections.length === 0) {
-    document.getElementById('card-grid').innerHTML = `
-      <div class="empty-state onboarding">
-        <svg width="52" height="40" viewBox="0 0 96 76" fill="none" xmlns="http://www.w3.org/2000/svg" style="color:#0071e3;margin-bottom:4px">
-          <path d="M 66 44 C 52 36 26 22 8 8 C 16 8 34 18 48 30 C 36 20 22 12 16 6 C 32 2 56 14 62 32 Z" fill="currentColor"/>
-          <path d="M 66 44 C 74 40 84 32 84 22 C 84 12 76 8 70 14 C 66 20 66 36 66 44 Z" fill="currentColor"/>
-          <path d="M 66 44 C 56 54 44 60 38 56 C 46 50 56 46 66 44 Z" fill="currentColor"/>
-          <polygon points="84,20 96,24 84,28" fill="currentColor"/>
-          <circle cx="76" cy="16" r="3" fill="white"/>
-        </svg>
-        <h2>환영해요!</h2>
-        <p>관심 주제와 뉴스 소스를 등록하면<br>AI가 매일 한국어로 요약해드려요.</p>
-        <a href="settings.html" class="btn-primary" style="text-decoration:none;margin-top:8px">첫 섹션 추가하기 →</a>
-      </div>`;
+    showOnboardingWizard();
     return;
   }
 
@@ -339,3 +327,183 @@ window.showToast = function(msg) {
 };
 
 // initApp()은 index.html의 Clerk 인증 완료 후 호출됨
+
+// ─── 온보딩 위저드 ────────────────────────────────────────────────────────────
+
+async function pbApi(method, path, body) {
+  const token = await window.Clerk.session.getToken();
+  const res = await fetch(API_BASE + path, {
+    method,
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+function escOb(str) {
+  return String(str || '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+const OB_LOGO = `<svg class="wizard-logo" width="44" height="34" viewBox="0 0 96 76" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M 66 44 C 52 36 26 22 8 8 C 16 8 34 18 48 30 C 36 20 22 12 16 6 C 32 2 56 14 62 32 Z" fill="currentColor"/>
+  <path d="M 66 44 C 74 40 84 32 84 22 C 84 12 76 8 70 14 C 66 20 66 36 66 44 Z" fill="currentColor"/>
+  <path d="M 66 44 C 56 54 44 60 38 56 C 46 50 56 46 66 44 Z" fill="currentColor"/>
+  <polygon points="84,20 96,24 84,28" fill="currentColor"/>
+  <circle cx="76" cy="16" r="3" fill="white"/>
+</svg>`;
+
+function obSteps(active) {
+  // active: 1, 2, 3
+  const dot = (n) => `<span class="wizard-step-dot ${n < active ? 'done' : n === active ? 'active' : ''}"></span>`;
+  const line = (n) => `<span class="wizard-step-line ${n < active ? 'done' : ''}"></span>`;
+  return `<div class="wizard-steps">${dot(1)}${line(1)}${dot(2)}${line(2)}${dot(3)}</div>`;
+}
+
+function showOnboardingWizard() {
+  document.getElementById('card-grid').innerHTML = `
+    <div class="wizard-wrap">
+      ${OB_LOGO}
+      ${obSteps(1)}
+      <h2 class="wizard-title">PigeonBrief에 오신 걸 환영해요!</h2>
+      <p class="wizard-subtitle">첫 번째 주제를 만들어볼게요.<br>관심 있는 뉴스 분야를 하나 정해보세요.</p>
+      <div class="wizard-field">
+        <label class="wizard-label">주제 이름</label>
+        <input id="ob-section-name" class="wizard-input"
+          placeholder="예: AI, 경제, 스타트업, 반도체"
+          onkeydown="if(event.key==='Enter') obCreateSection()" />
+      </div>
+      <div class="wizard-field">
+        <label class="wizard-label">설명 <span class="wizard-optional">(선택)</span></label>
+        <input id="ob-section-desc" class="wizard-input"
+          placeholder="이 주제에 대한 간단한 설명"
+          onkeydown="if(event.key==='Enter') obCreateSection()" />
+      </div>
+      <div id="ob1-error" class="wizard-error" style="display:none"></div>
+      <div class="wizard-actions">
+        <button id="ob1-btn" class="btn-primary" onclick="obCreateSection()">다음 →</button>
+      </div>
+    </div>`;
+  setTimeout(() => document.getElementById('ob-section-name')?.focus(), 80);
+}
+
+async function obCreateSection() {
+  const name  = document.getElementById('ob-section-name')?.value.trim();
+  const desc  = document.getElementById('ob-section-desc')?.value.trim() || '';
+  const errEl = document.getElementById('ob1-error');
+  if (!name) {
+    errEl.textContent = '주제 이름을 입력해 주세요.';
+    errEl.style.display = '';
+    return;
+  }
+  const btn = document.getElementById('ob1-btn');
+  btn.disabled = true; btn.textContent = '생성 중...';
+  errEl.style.display = 'none';
+  try {
+    const result = await pbApi('POST', '/api/settings/sections', { name, description: desc });
+    obStep2(result.id, name);
+  } catch(e) {
+    errEl.textContent = '오류가 발생했어요: ' + e.message;
+    errEl.style.display = '';
+    btn.disabled = false; btn.textContent = '다음 →';
+  }
+}
+
+function obStep2(sectionId, sectionName) {
+  document.getElementById('card-grid').innerHTML = `
+    <div class="wizard-wrap">
+      ${obSteps(2)}
+      <h2 class="wizard-title">"${escOb(sectionName)}"에<br>뉴스 소스를 등록해요</h2>
+      <p class="wizard-subtitle">RSS 피드나 키워드를 추가하면 AI가 관련 뉴스를 수집해요.<br>지금 건너뛰고 나중에 설정에서 추가해도 돼요.</p>
+      <div class="wizard-source-tabs">
+        <button class="wizard-tab active" id="ob-tab-rss" onclick="obSwitchTab('rss')">📡 RSS 피드</button>
+        <button class="wizard-tab" id="ob-tab-kw" onclick="obSwitchTab('kw')">🔍 키워드</button>
+      </div>
+      <div id="ob-rss-panel" style="width:100%">
+        <div class="wizard-field-row">
+          <input id="ob-rss-url" class="wizard-input" placeholder="https://feeds.example.com/rss" style="flex:1;min-width:0" />
+          <input id="ob-rss-name" class="wizard-input" placeholder="소스 이름" style="width:130px;flex-shrink:0" />
+          <button class="btn-secondary" onclick="obAddRss(${sectionId})">추가</button>
+        </div>
+        <div id="ob-rss-list" class="wizard-tag-list"></div>
+      </div>
+      <div id="ob-kw-panel" style="display:none;width:100%">
+        <div class="wizard-field-row">
+          <input id="ob-kw-input" class="wizard-input"
+            placeholder="예: AI agent enterprise" style="flex:1;min-width:0"
+            onkeydown="if(event.key==='Enter') obAddKeyword(${sectionId})" />
+          <button class="btn-secondary" onclick="obAddKeyword(${sectionId})">추가</button>
+        </div>
+        <div id="ob-kw-list" class="wizard-tag-list"></div>
+      </div>
+      <div id="ob2-error" class="wizard-error" style="display:none"></div>
+      <div class="wizard-actions wizard-actions-2">
+        <button class="wizard-btn-skip" onclick="obComplete('${escOb(sectionName)}')">나중에 하기</button>
+        <button class="btn-primary" onclick="obComplete('${escOb(sectionName)}')">설정 완료 →</button>
+      </div>
+    </div>`;
+}
+
+function obSwitchTab(tab) {
+  document.getElementById('ob-rss-panel').style.display = tab === 'rss' ? '' : 'none';
+  document.getElementById('ob-kw-panel').style.display  = tab === 'kw'  ? '' : 'none';
+  document.getElementById('ob-tab-rss').classList.toggle('active', tab === 'rss');
+  document.getElementById('ob-tab-kw').classList.toggle('active',  tab === 'kw');
+}
+
+async function obAddRss(sectionId) {
+  const url   = document.getElementById('ob-rss-url')?.value.trim();
+  const name  = document.getElementById('ob-rss-name')?.value.trim();
+  const errEl = document.getElementById('ob2-error');
+  if (!url || !name) {
+    errEl.textContent = 'URL과 이름을 모두 입력해 주세요.';
+    errEl.style.display = '';
+    return;
+  }
+  errEl.style.display = 'none';
+  try {
+    await pbApi('POST', '/api/settings/rss', { section_id: sectionId, url, name });
+    document.getElementById('ob-rss-url').value  = '';
+    document.getElementById('ob-rss-name').value = '';
+    document.getElementById('ob-rss-list').innerHTML += `<span class="wizard-tag">📡 ${escOb(name)}</span>`;
+    document.getElementById('ob-rss-url').focus();
+  } catch(e) {
+    errEl.textContent = '추가 실패: ' + e.message;
+    errEl.style.display = '';
+  }
+}
+
+async function obAddKeyword(sectionId) {
+  const query = document.getElementById('ob-kw-input')?.value.trim();
+  const errEl = document.getElementById('ob2-error');
+  if (!query) return;
+  errEl.style.display = 'none';
+  try {
+    await pbApi('POST', '/api/settings/keywords', { section_id: sectionId, query });
+    document.getElementById('ob-kw-input').value = '';
+    document.getElementById('ob-kw-list').innerHTML += `<span class="wizard-tag">🔍 ${escOb(query)}</span>`;
+    document.getElementById('ob-kw-input').focus();
+  } catch(e) {
+    errEl.textContent = '추가 실패: ' + e.message;
+    errEl.style.display = '';
+  }
+}
+
+function obComplete(sectionName) {
+  document.getElementById('card-grid').innerHTML = `
+    <div class="wizard-wrap wizard-complete">
+      ${obSteps(3)}
+      <div class="wizard-complete-icon">🎉</div>
+      <h2 class="wizard-title">설정 완료!</h2>
+      <p class="wizard-subtitle">"${escOb(sectionName)}" 주제가 등록됐어요.</p>
+      <div class="wizard-schedule-box">
+        🕙 오늘 밤 파이프라인이 실행되면 첫 브리핑이 도착해요.<br>
+        <span style="font-size:12px;opacity:0.75">AI가 매일 자동으로 뉴스를 수집하고 한국어로 요약해드려요.</span>
+      </div>
+      <div class="wizard-actions">
+        <button class="btn-primary" onclick="loadData()">PigeonBrief 시작하기 →</button>
+      </div>
+    </div>`;
+}

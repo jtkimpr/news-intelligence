@@ -2,10 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "website",
-      "runtimeExecutable": "/usr/local/bin/python3.13",
-      "runtimeArgs": ["-m", "http.server", "8787", "--directory", "website"],
-      "port": 8787
+      "name": "pigeonbrief-website",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "5173", "--directory", "website"],
+      "port": 5173
     }
   ]
 }
