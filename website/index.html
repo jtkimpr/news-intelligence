@@ -5,12 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PigeonBrief</title>
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <link rel="stylesheet" href="assets/style.css?v=7">
+  <link rel="stylesheet" href="assets/style.css?v=8">
   <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@700&display=swap" rel="stylesheet">
 </head>
 <body>
-  <header>
-    <div class="header-row">
+
+  <!-- ── 랜딩 페이지 (비로그인 기본 화면) ── -->
+  <div id="landing">
+
+    <nav class="landing-nav">
       <div class="brand">
         <svg class="brand-logo" width="46" height="36" viewBox="0 0 96 76" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M 66 44 C 52 36 26 22 8 8 C 16 8 34 18 48 30 C 36 20 22 12 16 6 C 32 2 56 14 62 32 Z" fill="currentColor"/>
@@ -19,27 +22,130 @@
           <polygon points="84,20 96,24 84,28" fill="currentColor"/>
           <circle cx="76" cy="16" r="3" fill="white"/>
         </svg>
-        <h1>PigeonBrief</h1>
+        <span class="landing-brand-name">PigeonBrief</span>
       </div>
-      <div class="header-actions">
-        <a href="settings.html" class="btn-icon" title="내 설정">
-          <svg xmlns="http://www.w3.org/2000/svg" height="20" width="20" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M0 0h24v24H0z" fill="none"/>
-            <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.63-.07.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.03-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
-          </svg>
-        </a>
-        <button class="btn-icon" id="btn-signout" title="로그아웃" style="display:none">
-          <svg xmlns="http://www.w3.org/2000/svg" height="20" width="20" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M0 0h24v24H0z" fill="none"/>
-            <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5-5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
-          </svg>
-        </button>
-      </div>
-    </div>
-  </header>
+      <a href="sign-in.html" class="btn-primary">로그인</a>
+    </nav>
 
-  <nav id="section-tabs"></nav>
-  <main id="card-grid"></main>
+    <section class="hero">
+      <div class="hero-content">
+        <h2 class="hero-title">나만의 뉴스를<br>자동으로</h2>
+        <p class="hero-desc">RSS와 Google News에서 원하는 주제의 뉴스를 수집하고,<br>AI가 매일 한국어로 요약해드려요.</p>
+        <div class="hero-cta">
+          <a href="sign-in.html" class="btn-primary btn-lg">무료로 시작하기</a>
+          <a href="sign-in.html" class="btn-ghost">로그인</a>
+        </div>
+      </div>
+      <div class="hero-preview">
+        <div class="preview-card">
+          <div class="preview-meta">테크 · 2시간 전</div>
+          <div class="preview-title">애플, 새로운 AI 기능 발표… 온디바이스 모델 대폭 강화</div>
+          <div class="preview-summary">이번 업데이트에서 애플은 개인정보 보호를 유지하면서도 강력한 AI 기능을 디바이스에서 직접 처리할 수 있는 새로운 모델을 공개했다.</div>
+        </div>
+        <div class="preview-card">
+          <div class="preview-meta">경제 · 5시간 전</div>
+          <div class="preview-title">미 연준, 금리 동결 결정… "인플레이션 목표 달성까지 신중"</div>
+          <div class="preview-summary">연방준비제도는 이번 회의에서 기준금리를 현 수준으로 유지하기로 결정했으며, 의장은 향후 데이터 의존적 접근을 강조했다.</div>
+        </div>
+        <div class="preview-card preview-card-muted">
+          <div class="preview-meta">스타트업 · 어제</div>
+          <div class="preview-title">국내 AI 스타트업, 시리즈 B 300억 투자 유치</div>
+          <div class="preview-summary">기업용 LLM 솔루션을 개발하는 스타트업이 국내외 VC로부터 대규모 투자를 받았다고 밝혔다.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="features-section">
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">📡</div>
+          <h3>원하는 소스 구독</h3>
+          <p>RSS 피드와 Google News 키워드로 관심 분야의 뉴스를 자동으로 수집해요.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🤖</div>
+          <h3>AI 자동 요약</h3>
+          <p>수집된 기사를 AI가 관련도 기준으로 필터링하고 3~4문장으로 요약해드려요.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🗂️</div>
+          <h3>주제별 정리</h3>
+          <p>섹션을 직접 만들어 테크, 경제, 스타트업 등 관심사별로 뉴스를 분류해요.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="how-it-works">
+      <h2 class="section-heading">이용 방법</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <h3>가입하기</h3>
+          <p>이메일로 간단하게 무료 가입해요.</p>
+        </div>
+        <div class="step-arrow">→</div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <h3>주제·소스 등록</h3>
+          <p>원하는 RSS 피드와 키워드로 내 뉴스 섹션을 구성해요.</p>
+        </div>
+        <div class="step-arrow">→</div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <h3>매일 자동 브리핑</h3>
+          <p>AI가 요약한 최신 뉴스를 매일 확인해요.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="landing-bottom-cta">
+      <h2>지금 바로 시작해보세요</h2>
+      <p>무료로 가입하고 나만의 뉴스 피드를 만들어보세요.</p>
+      <a href="sign-in.html" class="btn-primary btn-lg btn-white">무료로 시작하기</a>
+    </section>
+
+    <footer class="landing-footer">
+      <span>© 2026 PigeonBrief</span>
+    </footer>
+
+  </div><!-- /#landing -->
+
+
+  <!-- ── 앱 (로그인 후) ── -->
+  <div id="app" style="display:none">
+    <header>
+      <div class="header-row">
+        <div class="brand">
+          <svg class="brand-logo" width="46" height="36" viewBox="0 0 96 76" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M 66 44 C 52 36 26 22 8 8 C 16 8 34 18 48 30 C 36 20 22 12 16 6 C 32 2 56 14 62 32 Z" fill="currentColor"/>
+            <path d="M 66 44 C 74 40 84 32 84 22 C 84 12 76 8 70 14 C 66 20 66 36 66 44 Z" fill="currentColor"/>
+            <path d="M 66 44 C 56 54 44 60 38 56 C 46 50 56 46 66 44 Z" fill="currentColor"/>
+            <polygon points="84,20 96,24 84,28" fill="currentColor"/>
+            <circle cx="76" cy="16" r="3" fill="white"/>
+          </svg>
+          <h1>PigeonBrief</h1>
+        </div>
+        <div class="header-actions">
+          <a href="settings.html" class="btn-icon" title="내 설정">
+            <svg xmlns="http://www.w3.org/2000/svg" height="20" width="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M0 0h24v24H0z" fill="none"/>
+              <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.63-.07.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.03-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+            </svg>
+          </a>
+          <button class="btn-icon" id="btn-signout" title="로그아웃" style="display:none">
+            <svg xmlns="http://www.w3.org/2000/svg" height="20" width="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M0 0h24v24H0z" fill="none"/>
+              <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5-5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <nav id="section-tabs"></nav>
+    <main id="card-grid"></main>
+  </div><!-- /#app -->
+
 
   <!-- Clerk -->
   <script
@@ -53,9 +159,12 @@
     window.addEventListener('load', async () => {
       await window.Clerk.load();
       if (!window.Clerk.user) {
-        window.location.href = '/sign-in.html';
+        // 비로그인: 랜딩 페이지 유지
         return;
       }
+      // 로그인 상태: 랜딩 숨기고 앱 표시
+      document.getElementById('landing').style.display = 'none';
+      document.getElementById('app').style.display = '';
       // 로그아웃 버튼 표시
       const btnSignout = document.getElementById('btn-signout');
       btnSignout.style.display = '';
@@ -66,7 +175,7 @@
       initApp();
     });
   </script>
-  <script src="assets/app.js?v=7"></script>
-  <script src="assets/settings.js?v=7"></script>
+  <script src="assets/app.js?v=8"></script>
+  <script src="assets/settings.js?v=8"></script>
 </body>
 </html>
