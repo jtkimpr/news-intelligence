@@ -32,11 +32,23 @@ function cleanSummary(text) {
 const API_BASE = 'https://api.pigeonbrief.com';
 
 async function loadData() {
-  const token = await window.Clerk.session.getToken();
-  const res = await fetch(`${API_BASE}/api/articles`, {
-    headers: { 'Authorization': `Bearer ${token}` }
-  });
-  allData = await res.json();
+  try {
+    const token = await window.Clerk.session.getToken();
+    const res = await fetch(`${API_BASE}/api/articles`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error(`API 오류 (${res.status})`);
+    allData = await res.json();
+  } catch(e) {
+    document.getElementById('card-grid').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">⚠️</div>
+        <p>데이터를 불러오지 못했어요.<br><small style="color:#bbb">${e.message}</small></p>
+        <button class="btn-primary" style="margin-top:12px" onclick="loadData()">다시 시도</button>
+      </div>`;
+    return;
+  }
+
   (allData.sections || []).forEach(sec =>
     (sec.articles || []).forEach(a => { articlesById[a.id] = a; })
   );
