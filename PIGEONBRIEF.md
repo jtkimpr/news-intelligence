@@ -290,19 +290,76 @@ DB (사용자별 sections/rss/keywords)
 
 **Phase 0 완료 (2026-04-09)** — v2 프롬프트로 11개 주제 평균 자동 점수 4.00/5 달성, 8/11 주제 ≥4점. 상세는 `docs/ai_keyword_design.md` 및 `data/test_results/2026-04-09-1320-v2/summary.md` 참조.
 
-**Phase 0 핵심 발견사항 (Phase 1에 반영 필요)**
+**Phase 0 핵심 발견사항 (Phase 1에 반영됨)**
 - 키워드 품질은 v2 프롬프트로 충분 — 표면 단어 반복 문제 해결, related_entities에 진짜 고유명사 등장
 - **RSS URL 직접 추천은 한계 명확** — v2도 메이저 매체(WSJ, Bloomberg, Reuters) 경로 환각, 한국 매체 RSS 변경 추적 불가
 - → **Phase 1에서 RSS 추천 아키텍처 변경**: AI 직접 생성 → 사전 검증된 화이트리스트 DB 기반 추천으로 전환
-- 짧은 입력 시 되묻기 미작동 가능성 — Phase 1 초반 추가 검증 필요
+- 짧은 입력 100% 되묻기 작동 확인 (`scripts/test_short_inputs.py`)
 
-**Phase 1 진행 중** — 구현 계획 수립 중 (`docs/phase1_plan.md` 예정)
+**Phase 1 구현 완료 (2026-04-09)** — Step 1~6 완료, 남은 건 Step 8 (CEO 베타 테스트).
+- 상세 계획: `docs/phase1_plan.md`
+- 커밋: `7b30402 feat(phase1): AI 키워드 제안 대화형 온보딩 (Step 1~6)`
+- **남은 작업**: CEO가 pigeonbrief.com에서 직접 위저드 돌려본 후 피드백 → 수정 → 지인 베타 확대
 
 ---
 
 ## 주요 변경 이력
 
-### 2026-04-09
+### 2026-04-09 — Phase 1: AI 키워드 제안 대화형 온보딩 구현
+
+커밋 `7b30402 feat(phase1): AI 키워드 제안 대화형 온보딩 (Step 1~6)` — 19 files, +3163/-85.
+
+**새 모듈 (`backend/ai/`)**
+- `prompts.py` — v2 프롬프트 3종 (A 해석/되묻기, B 키워드 추천, C 자연어 수정). Few-shot 포함, RSS는 프롬프트에서 제외 (화이트리스트로 분리)
+- `cache.py` — SQLite 기반 LLM 응답 캐시 (SHA-256 키, 24h TTL, `ai_cache` 테이블)
+- `llm_client.py` — Ollama OpenAI 호환 엔드포인트, JSON 모드, 1회 재시도, 캐시 통합. `interpret()` / `suggest_keywords()` / `edit_keywords()`
+- `rss_recommender.py` — 키워드 세트 → 카테고리 추론 → `data/rss_whitelist.json` 매칭 → 상위 N개. 약 60개의 키워드→카테고리 매핑 휴리스틱
+- `preview.py` — 실제 수집·요약 파이프라인 (`collectors.rss` + `collectors.keyword` + `processor.claude`) 재사용. 가상 `section_config`를 메모리에 만들어 DB 저장 없이 실행. 전체 상한 **90초**, 후보 15개 컷, `min_score=0.5`, 상태별 응답(`ok`/`partial`/`empty`/`no_llm`/`no_summary`)
+
+**새 라우터 (`backend/routers/ai.py`)**
+- `POST /api/ai/interpret` — 주제 해석, 필요 시 clarification question 1개 반환
+- `POST /api/ai/suggest-keywords` — 키워드 세트 + 화이트리스트 RSS 상위 5개
+- `POST /api/ai/edit-keywords` — 자연어 수정 요청
+- `POST /api/ai/preview` — 실제 수집·요약 (기본 `max_articles=3`)
+- 모두 Clerk 인증(`verify_token`) 필요. `backend/main.py`에 `prefix="/api/ai"`로 등록
+
+**DB 스키마 (`backend/database.py`)**
+- `ai_cache` 테이블 신규 (cache_key PK, response, created_at)
+- `sections.created_via` 컬럼 추가 (`ALTER TABLE`, 기본값 `'manual'`, 안전 마이그레이션 — `PRAGMA table_info` 체크 후 부재 시에만)
+
+**RSS 화이트리스트 (`data/rss_whitelist.json`)**
+- 69개 후보 → feedparser 검증(3회 재시도, 20초 타임아웃) → **56개 통과** 저장
+- 카테고리 분포: tech 16 / business 13 / finance 12 / science 9 / ai 6 / geopolitics 6 / startup 5 / healthcare 5 / bio 5 / vc 4 / policy 4 / general 4
+- 빌더: `scripts/build_rss_whitelist.py`
+
+**프론트엔드 (`website/assets/app.js`, `style.css`)**
+- 온보딩 위저드 **3단계 → 5단계** 전면 교체
+  - Step 1: 자연어 주제 입력 (textarea)
+  - Step 2: 되묻기 (필요 시만, 건너뛰기 가능)
+  - Step 3: 키워드 칩(클릭 토글) + 연관/제외 + 추천 검색어 + RSS 체크박스 + **"AI로 수정"** 인라인 박스
+  - Step 4: 미리보기 (상한 90초, 샘플 3건)
+  - Step 5: 섹션 생성 + 선택 RSS/검색어 일괄 등록 → 완료
+- `wizState` 객체로 단계 간 상태 유지, 로딩 스피너 공통화
+- 새 CSS: `.wiz-chip`, `.wiz-rss-item`, `.wiz-ai-edit`, `.wizard-spinner`, `.wiz-preview-*`
+
+**문서·스크립트**
+- `docs/ai_keyword_design.md` — 사용자 여정 8단계, 프롬프트 3종, UI 와이어프레임, v1→v2 changelog
+- `docs/phase1_plan.md` — Phase 1 구현 블루프린트
+- `scripts/test_ai_keyword.py` — 11개 주제 자동 평가 (5점 만점), v2 평균 4.00/5 달성
+- `scripts/test_short_inputs.py` — 짧은 입력 10개 되묻기율 100% 확인
+
+**튜닝 결정사항 (로컬 Ollama 제약 반영)**
+- 미리보기 상한 45초 → **90초** (Qwen 2.5 14B 요약 1건당 10~15초)
+- 미리보기 샘플 5건 → **3건** (미리보기는 맛보기 용도, 실제 일일 파이프라인은 섹션당 20건 유지)
+
+**남은 작업 (Phase 1 Step 8)**
+- CEO가 pigeonbrief.com에서 위저드 직접 사용 → 피드백 수집
+- 필요 시 수정 후 지인 5~10명 베타 확대
+- 설정 화면(`settings.html`)의 기존 섹션에 "AI로 수정" 버튼 추가는 후속 작업
+
+---
+
+### 2026-04-09 (Phase 1 이전)
 
 **브라우저 "Failed to fetch" 해결 — `.env` 로드 import 순서 버그**
 - 증상: `pigeonbrief.com` 로그인 후 `/api/articles` 호출이 브라우저에서 CORS 오류처럼 보이며 실패. 실제로는 백엔드가 500을 반환했고, 500 응답에는 CORSMiddleware가 헤더를 붙이지 못해 브라우저에 CORS 오류로 표출됨
