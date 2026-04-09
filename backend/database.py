@@ -72,7 +72,18 @@ def init_db():
                 seen_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (url, user_id)
             );
+
+            CREATE TABLE IF NOT EXISTS ai_cache (
+                cache_key   TEXT PRIMARY KEY,
+                response    TEXT NOT NULL,
+                created_at  INTEGER NOT NULL
+            );
         """)
+
+        # sections.created_via 안전 마이그레이션
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(sections)")}
+        if "created_via" not in cols:
+            conn.execute("ALTER TABLE sections ADD COLUMN created_via TEXT DEFAULT 'manual'")
     print(f"[DB] 초기화 완료: {DB_PATH}")
 
 

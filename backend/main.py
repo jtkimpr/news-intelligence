@@ -13,7 +13,7 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.database import init_db
-from backend.routers import settings, articles
+from backend.routers import settings, articles, ai
 
 app = FastAPI(title="PigeonBrief API")
 
@@ -43,3 +43,4 @@ def health():
 
 app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
 app.include_router(articles.router, prefix="/api/articles", tags=["articles"])
+app.include_router(ai.router, prefix="/api/ai", tags=["ai"])
