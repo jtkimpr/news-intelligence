@@ -3,12 +3,9 @@ PigeonBrief FastAPI 백엔드
 실행: .venv/bin/uvicorn backend.main:app --host 0.0.0.0 --port 8000
 """
 import os
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from backend.database import init_db
-from backend.routers import settings, articles
 
-# .env 로드
+# .env 로드 (반드시 backend.* import 보다 먼저 실행되어야 함 — auth.py 등이
+# 모듈 로드 시점에 os.environ을 읽기 때문)
 if os.path.exists('.env'):
     with open('.env') as f:
         for line in f:
@@ -16,6 +13,11 @@ if os.path.exists('.env'):
             if line and not line.startswith('#') and '=' in line:
                 k, v = line.split('=', 1)
                 os.environ.setdefault(k.strip(), v.strip().strip('"\''))
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from backend.database import init_db
+from backend.routers import settings, articles
 
 app = FastAPI(title="PigeonBrief API")
 

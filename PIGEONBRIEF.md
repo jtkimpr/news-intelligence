@@ -197,23 +197,22 @@ DB (사용자별 sections/rss/keywords)
 
 ## 남은 작업
 
-### [미해결] 브라우저에서 API "Failed to fetch" 오류
-- **증상**: `pigeonbrief.com` 로그인 후 앱 화면에서 "데이터를 불러오지 못했어요. Failed to fetch" 표시
-- **확인된 사항**:
-  - FastAPI 백엔드(`localhost:8000`) 정상 동작 ✓
-  - Cloudflare 터널(`api.pigeonbrief.com`) 연결 정상, HTTP 200 응답 ✓
-  - CORS 설정 정상 (`pigeonbrief.com`, `www.pigeonbrief.com` 모두 허용) ✓
-  - SSL 인증서 정상 ✓
-  - `curl`로 API 호출 시 정상 응답, 브라우저에서만 실패
-- **의심 원인**: Chrome 확장(광고차단기 등)이 `api.pigeonbrief.com` 차단 가능성
-- **다음 세션 시도**:
-  1. Chrome 시크릿 모드에서 접속해서 동일 오류 재현 여부 확인
-  2. Chrome DevTools → Network 탭에서 실제 요청 오류 코드 확인
-  3. Chrome DevTools → Console 탭 오류 메시지 확인
+(현재 미해결 이슈 없음)
 
 ---
 
 ## 주요 변경 이력
+
+### 2026-04-09
+
+**브라우저 "Failed to fetch" 해결 — `.env` 로드 import 순서 버그**
+- 증상: `pigeonbrief.com` 로그인 후 `/api/articles` 호출이 브라우저에서 CORS 오류처럼 보이며 실패. 실제로는 백엔드가 500을 반환했고, 500 응답에는 CORSMiddleware가 헤더를 붙이지 못해 브라우저에 CORS 오류로 표출됨
+- 근본 원인: `backend/main.py`가 `.env`를 로드하기 **전에** `from backend.routers import ...`를 먼저 실행 → `auth.py:15`의 `CLERK_JWKS_URL = os.environ.get(...)`이 모듈 로드 시점에 빈 문자열로 고정 → JWKS 조회 단계에서 `RuntimeError` 발생
+- 수정:
+  - `backend/main.py`: `.env` 로드 블록을 모든 `backend.*` import 위로 이동
+  - `backend/auth.py`: `CLERK_JWKS_URL`을 모듈 전역 상수가 아닌 `_get_jwks()` 호출 시점에 `os.environ.get(...)`으로 읽도록 변경 (import 순서 의존성 제거, 재발 방지)
+- 검증: `launchctl kickstart -k` 후 `/health` 200, `/api/articles`(인증 없음) 500 → 401 로 정상화. 브라우저에서도 정상 동작 확인
+- 참고 권장: 향후 `python-dotenv`의 `load_dotenv()`로 교체하면 더 안전
 
 ### 2026-04-08 (5차)
 

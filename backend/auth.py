@@ -10,10 +10,6 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 security = HTTPBearer()
 
-# Clerk JWKS URL — .env에서 읽음
-# 형식: https://<your-clerk-frontend-api>/.well-known/jwks.json
-CLERK_JWKS_URL = os.environ.get("CLERK_JWKS_URL", "")
-
 _jwks_cache: dict = {}
 
 
@@ -21,9 +17,11 @@ def _get_jwks() -> dict:
     global _jwks_cache
     if _jwks_cache:
         return _jwks_cache
-    if not CLERK_JWKS_URL:
+    # 호출 시점에 환경변수를 읽어 import 순서 의존성 제거
+    jwks_url = os.environ.get("CLERK_JWKS_URL", "")
+    if not jwks_url:
         raise RuntimeError(".env에 CLERK_JWKS_URL을 설정하세요")
-    resp = httpx.get(CLERK_JWKS_URL, timeout=10)
+    resp = httpx.get(jwks_url, timeout=10)
     resp.raise_for_status()
     _jwks_cache = resp.json()
     return _jwks_cache
