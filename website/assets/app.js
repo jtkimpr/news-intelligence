@@ -343,13 +343,19 @@ window.showToast = function(msg) {
 // ─── 온보딩 위저드 ────────────────────────────────────────────────────────────
 
 async function pbApi(method, path, body) {
+  if (!window.Clerk?.session) throw new Error('로그인 세션이 만료됐어요. 페이지를 새로고침해 주세요.');
   const token = await window.Clerk.session.getToken();
+  if (!token) throw new Error('인증 토큰을 가져오지 못했어요. 페이지를 새로고침해 주세요.');
   const res = await fetch(API_BASE + path, {
     method,
     headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: body ? JSON.stringify(body) : undefined,
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) {
+    let msg;
+    try { msg = (await res.json()).detail || await res.text(); } catch { msg = `서버 오류 (${res.status})`; }
+    throw new Error(msg);
+  }
   return res.json();
 }
 
@@ -380,7 +386,9 @@ function obSteps(active, total = 5) {
 
 // ─── 위저드 상태 ──────────────────────────────────────────────────────────────
 const wizState = {
-  topic: '',
+  sectionName: '',        // 섹션 탭에 표시될 짧은 이름
+  topic: '',              // AI에 전달하는 주제 설명
+  purpose: '',            // 뉴스 수집 목적
   clarificationQuestion: '',
   clarificationAnswer: '',
   keywordSet: null,       // {core_keywords, related_entities, related_concepts, exclude_keywords, recommended_query}
@@ -390,7 +398,9 @@ const wizState = {
 };
 
 function wizReset() {
+  wizState.sectionName = '';
   wizState.topic = '';
+  wizState.purpose = '';
   wizState.clarificationQuestion = '';
   wizState.clarificationAnswer = '';
   wizState.keywordSet = null;
@@ -412,46 +422,84 @@ function wizLoading(step, msg) {
 
 // ─── Step 1: 주제 입력 ────────────────────────────────────────────────────────
 
+const OB_PURPOSE_OPTIONS = [
+  { value: '경쟁사 모니터링', label: '경쟁사 모니터링' },
+  { value: '시장 조사',       label: '시장 조사' },
+  { value: '기술 트렌드',     label: '기술 트렌드' },
+  { value: '투자 리서치',     label: '투자 리서치' },
+  { value: '개인 관심',       label: '개인 관심' },
+];
+
 function showOnboardingWizard() {
   wizReset();
+  const purposeBtns = OB_PURPOSE_OPTIONS.map(p =>
+    `<button type="button" class="wiz-purpose-btn" onclick="obTogglePurpose('${escJs(p.value)}')">${escOb(p.label)}</button>`
+  ).join('');
+
   document.getElementById('card-grid').innerHTML = `
     <div class="wizard-wrap">
       ${OB_LOGO}
       ${obSteps(1)}
       <h2 class="wizard-title">PigeonBrief에 오신 걸 환영해요!</h2>
-      <p class="wizard-subtitle">관심 있는 뉴스 주제를 자유롭게 적어주세요.<br>AI가 알아서 키워드와 추천 소스를 골라드려요.</p>
+      <p class="wizard-subtitle">수집하고 싶은 뉴스 주제를 알려주세요.<br>AI가 키워드와 추천 소스를 골라드려요.</p>
       <div class="wizard-field">
-        <label class="wizard-label">관심 주제</label>
+        <label class="wizard-label">섹션 이름 <span class="wizard-optional">탭에 표시될 짧은 이름</span></label>
+        <input id="ob-name" class="wizard-input" maxlength="40"
+          placeholder="예: 의료 AI 동향" />
+      </div>
+      <div class="wizard-field">
+        <label class="wizard-label">주제 설명 <span class="wizard-optional">AI가 키워드를 추천할 때 참고해요</span></label>
         <textarea id="ob-topic" class="wizard-input wizard-textarea"
-          rows="4"
+          rows="3"
           placeholder="예: Ubcare처럼 EPIC을 지향하는 의료 소프트웨어 산업 동향"></textarea>
+      </div>
+      <div class="wizard-field">
+        <label class="wizard-label">수집 목적 <span class="wizard-optional">선택</span></label>
+        <div class="wiz-purpose-row" id="ob-purpose-row">${purposeBtns}</div>
       </div>
       <div id="ob1-error" class="wizard-error" style="display:none"></div>
       <div class="wizard-actions">
         <button id="ob1-btn" class="btn-primary" onclick="obStep1Submit()">AI에게 물어보기 →</button>
       </div>
     </div>`;
-  setTimeout(() => document.getElementById('ob-topic')?.focus(), 80);
+  setTimeout(() => document.getElementById('ob-name')?.focus(), 80);
+}
+
+function obTogglePurpose(value) {
+  wizState.purpose = wizState.purpose === value ? '' : value;
+  // 버튼 active 상태 갱신
+  document.querySelectorAll('.wiz-purpose-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent === value && wizState.purpose === value);
+  });
 }
 
 async function obStep1Submit() {
+  const name  = document.getElementById('ob-name')?.value.trim();
   const topic = document.getElementById('ob-topic')?.value.trim();
   const errEl = document.getElementById('ob1-error');
-  if (!topic || topic.length < 2) {
-    errEl.textContent = '주제를 2글자 이상 입력해 주세요.';
+
+  if (!name || name.length < 1) {
+    errEl.textContent = '섹션 이름을 입력해 주세요.';
     errEl.style.display = '';
     return;
   }
-  wizState.topic = topic;
+  if (!topic || topic.length < 2) {
+    errEl.textContent = '주제 설명을 2글자 이상 입력해 주세요.';
+    errEl.style.display = '';
+    return;
+  }
+
+  wizState.sectionName = name;
+  wizState.topic = topic + (wizState.purpose ? `\n\n수집 목적: ${wizState.purpose}` : '');
+
   wizLoading(2, 'AI가 주제를 분석하고 있어요...');
   try {
-    const result = await pbApi('POST', '/api/ai/interpret', { topic });
+    const result = await pbApi('POST', '/api/ai/interpret', { topic: wizState.topic });
     const data = result.data || result;
     if (data.needs_clarification && data.clarification_question) {
       wizState.clarificationQuestion = data.clarification_question;
       obStep2Clarify();
     } else {
-      // 곧바로 키워드 제안으로
       obFetchKeywords();
     }
   } catch(e) {
@@ -510,24 +558,36 @@ async function obFetchKeywords() {
 
 function obStep3Render() {
   const ks = wizState.keywordSet || {};
-  const core = ks.core_keywords || [];
+  const core     = ks.core_keywords || [];
   const entities = ks.related_entities || [];
   const concepts = ks.related_concepts || [];
-  const exclude = ks.exclude_keywords || [];
+  const exclude  = ks.exclude_keywords || [];
   const recQuery = ks.recommended_query || '';
 
-  const chip = (label, selected, action) =>
-    `<span class="wiz-chip ${selected ? 'selected' : ''}" onclick="${action}">${escOb(label)}</span>`;
+  // 핵심 키워드: 토글 + × 삭제
+  const coreChips = core.map(k => `
+    <span class="wiz-chip ${wizState.selectedCoreKeywords.has(k) ? 'selected' : ''} wiz-chip-editable"
+          onclick="obToggleCore('${escJs(k)}')">
+      ${escOb(k)}<button type="button" class="wiz-chip-del" onclick="event.stopPropagation();obDeleteCore('${escJs(k)}')" title="삭제">×</button>
+    </span>`).join('');
 
-  const coreChips = core.map(k =>
-    chip(k, wizState.selectedCoreKeywords.has(k), `obToggleCore('${escJs(k)}')`)
-  ).join('');
+  // 연관 고유명사/개념: 클릭 → 핵심 키워드로 추가
+  const entityChips = entities.map(k =>
+    `<span class="wiz-chip wiz-chip-info wiz-chip-addable" onclick="obEntityToCore('${escJs(k)}')" title="핵심 키워드로 추가">
+      ${escOb(k)} <span class="wiz-chip-plus">+</span>
+    </span>`).join('');
+  const conceptChips = concepts.map(k =>
+    `<span class="wiz-chip wiz-chip-info wiz-chip-addable" onclick="obEntityToCore('${escJs(k)}')" title="핵심 키워드로 추가">
+      ${escOb(k)} <span class="wiz-chip-plus">+</span>
+    </span>`).join('');
 
-  const entityChips = entities.map(k => `<span class="wiz-chip wiz-chip-info">${escOb(k)}</span>`).join('');
-  const conceptChips = concepts.map(k => `<span class="wiz-chip wiz-chip-info">${escOb(k)}</span>`).join('');
-  const excludeChips = exclude.map(k => `<span class="wiz-chip wiz-chip-exclude">− ${escOb(k)}</span>`).join('');
+  // 제외 키워드: × 삭제
+  const excludeChips = exclude.map(k =>
+    `<span class="wiz-chip wiz-chip-exclude wiz-chip-editable">
+      − ${escOb(k)}<button type="button" class="wiz-chip-del" onclick="obDeleteExclude('${escJs(k)}')" title="삭제">×</button>
+    </span>`).join('');
 
-  const rssItems = wizState.rssSuggestions.map((r, i) => `
+  const rssItems = wizState.rssSuggestions.map(r => `
     <label class="wiz-rss-item">
       <input type="checkbox" ${wizState.selectedRssUrls.has(r.url) ? 'checked' : ''}
         onchange="obToggleRss('${escJs(r.url)}')" />
@@ -541,27 +601,36 @@ function obStep3Render() {
     <div class="wizard-wrap wizard-wrap-wide">
       ${obSteps(3)}
       <h2 class="wizard-title">AI가 이렇게 정리했어요</h2>
-      <p class="wizard-subtitle">마음에 안 드는 부분은 AI에게 수정 요청할 수 있어요.</p>
+      <p class="wizard-subtitle">직접 수정하거나, AI에게 수정 요청할 수 있어요.</p>
 
       <div class="wiz-section">
-        <div class="wiz-section-title">🎯 핵심 키워드 <span class="wiz-hint">(클릭해서 선택/해제)</span></div>
-        <div class="wiz-chips">${coreChips || '<span class="wiz-empty">없음</span>'}</div>
+        <div class="wiz-section-title">🎯 핵심 키워드 <span class="wiz-hint">클릭해서 선택/해제 · × 로 삭제</span></div>
+        <div class="wiz-chips" id="wiz-core-chips">
+          ${coreChips || '<span class="wiz-empty">없음</span>'}
+        </div>
+        <div class="wiz-add-row">
+          <input id="ob-add-core" class="wizard-input wiz-add-input" placeholder="키워드 직접 추가..."
+            onkeydown="if(event.key==='Enter') obAddCore()" />
+          <button type="button" class="wiz-add-btn" onclick="obAddCore()">추가</button>
+        </div>
       </div>
 
-      ${entityChips ? `<div class="wiz-section">
-        <div class="wiz-section-title">🏢 연관 고유명사</div>
-        <div class="wiz-chips">${entityChips}</div>
+      ${(entityChips || conceptChips) ? `<div class="wiz-section">
+        <div class="wiz-section-title">💡 참고 키워드 <span class="wiz-hint">클릭하면 핵심 키워드로 추가돼요</span></div>
+        <div class="wiz-chips">${entityChips}${conceptChips}</div>
       </div>` : ''}
 
-      ${conceptChips ? `<div class="wiz-section">
-        <div class="wiz-section-title">💡 연관 개념</div>
-        <div class="wiz-chips">${conceptChips}</div>
-      </div>` : ''}
-
-      ${excludeChips ? `<div class="wiz-section">
-        <div class="wiz-section-title">🚫 제외 키워드</div>
-        <div class="wiz-chips">${excludeChips}</div>
-      </div>` : ''}
+      <div class="wiz-section">
+        <div class="wiz-section-title">🚫 제외 키워드 <span class="wiz-hint">이 단어가 포함된 기사는 걸러져요 · × 로 삭제</span></div>
+        <div class="wiz-chips">
+          ${excludeChips || '<span class="wiz-empty">없음</span>'}
+        </div>
+        <div class="wiz-add-row">
+          <input id="ob-add-exclude" class="wizard-input wiz-add-input" placeholder="제외할 키워드 추가..."
+            onkeydown="if(event.key==='Enter') obAddExclude()" />
+          <button type="button" class="wiz-add-btn" onclick="obAddExclude()">추가</button>
+        </div>
+      </div>
 
       <div class="wiz-section">
         <div class="wiz-section-title">🔍 추천 검색어</div>
@@ -594,6 +663,56 @@ function obStep3Render() {
 function obToggleCore(kw) {
   if (wizState.selectedCoreKeywords.has(kw)) wizState.selectedCoreKeywords.delete(kw);
   else wizState.selectedCoreKeywords.add(kw);
+  obStep3Render();
+}
+
+function obDeleteCore(kw) {
+  const ks = wizState.keywordSet;
+  if (!ks) return;
+  ks.core_keywords = (ks.core_keywords || []).filter(k => k !== kw);
+  wizState.selectedCoreKeywords.delete(kw);
+  obStep3Render();
+}
+
+function obAddCore() {
+  const input = document.getElementById('ob-add-core');
+  const val   = input?.value.trim();
+  if (!val) return;
+  const ks = wizState.keywordSet = wizState.keywordSet || {};
+  ks.core_keywords = ks.core_keywords || [];
+  if (!ks.core_keywords.includes(val)) {
+    ks.core_keywords.push(val);
+    wizState.selectedCoreKeywords.add(val);
+  }
+  obStep3Render();
+}
+
+function obEntityToCore(kw) {
+  const ks = wizState.keywordSet = wizState.keywordSet || {};
+  ks.core_keywords = ks.core_keywords || [];
+  if (!ks.core_keywords.includes(kw)) {
+    ks.core_keywords.push(kw);
+    wizState.selectedCoreKeywords.add(kw);
+    obStep3Render();
+  }
+}
+
+function obDeleteExclude(kw) {
+  const ks = wizState.keywordSet;
+  if (!ks) return;
+  ks.exclude_keywords = (ks.exclude_keywords || []).filter(k => k !== kw);
+  obStep3Render();
+}
+
+function obAddExclude() {
+  const input = document.getElementById('ob-add-exclude');
+  const val   = input?.value.trim();
+  if (!val) return;
+  const ks = wizState.keywordSet = wizState.keywordSet || {};
+  ks.exclude_keywords = ks.exclude_keywords || [];
+  if (!ks.exclude_keywords.includes(val)) {
+    ks.exclude_keywords.push(val);
+  }
   obStep3Render();
 }
 
@@ -649,9 +768,29 @@ async function obStep4Preview() {
 
 function obStep4Render(result) {
   const articles = result.articles || [];
-  const notice = result.status === 'not_implemented'
-    ? `<div class="wiz-preview-notice">🛠️ 미리보기는 곧 지원 예정이에요. 아래는 선택 결과 요약입니다.</div>`
-    : '';
+  const status   = result.status || 'ok';
+
+  // 상태별 안내 배너
+  let noticeBanner = '';
+  if (status === 'empty') {
+    noticeBanner = `<div class="wiz-preview-notice wiz-notice-warn">
+      검색 기간(72시간) 내 기사를 찾지 못했어요.<br>
+      <small>키워드를 넓히거나 RSS를 더 추가하면 수집 가능성이 높아져요.</small>
+    </div>`;
+  } else if (status === 'partial') {
+    noticeBanner = `<div class="wiz-preview-notice">
+      일부만 수집됐어요 — 일일 파이프라인에서는 더 많은 기사가 수집돼요.
+    </div>`;
+  } else if (status === 'no_llm') {
+    noticeBanner = `<div class="wiz-preview-notice wiz-notice-warn">
+      AI 요약 없이 수집된 기사를 보여드려요. (LLM 연결 실패)<br>
+      <small>${escOb(result.hint || '')}</small>
+    </div>`;
+  } else if (status === 'error') {
+    noticeBanner = `<div class="wiz-preview-notice wiz-notice-warn">
+      미리보기 수집 중 오류가 발생했어요: ${escOb(result.message || '')}
+    </div>`;
+  }
 
   const articleHtml = articles.length
     ? articles.map(a => `
@@ -661,23 +800,24 @@ function obStep4Render(result) {
           <div class="wiz-preview-summary">${escOb((a.summary_ko || '').slice(0, 200))}</div>
         </div>`).join('')
     : `<div class="wiz-preview-summary-box">
-        <div><strong>주제:</strong> ${escOb(wizState.topic)}</div>
-        <div><strong>핵심 키워드:</strong> ${[...wizState.selectedCoreKeywords].map(escOb).join(', ') || '—'}</div>
-        <div><strong>검색어:</strong> <code>${escOb(wizState.keywordSet?.recommended_query || '')}</code></div>
         <div><strong>선택 매체 (${wizState.selectedRssUrls.size}):</strong> ${wizState.rssSuggestions.filter(r => wizState.selectedRssUrls.has(r.url)).map(r => escOb(r.name)).join(', ') || '—'}</div>
+        <div style="margin-top:8px"><strong>검색어:</strong> <code>${escOb(wizState.keywordSet?.recommended_query || '')}</code></div>
       </div>`;
+
+  // 저장용 이름: wizState.sectionName 우선 (Step 1에서 입력한 값)
+  const defaultName = wizState.sectionName || (wizState.topic || '').slice(0, 40);
 
   document.getElementById('card-grid').innerHTML = `
     <div class="wizard-wrap wizard-wrap-wide">
       ${obSteps(4)}
       <h2 class="wizard-title">이렇게 구독해볼까요?</h2>
       <p class="wizard-subtitle">확인한 뒤 저장하면 오늘 밤부터 수집돼요.</p>
-      ${notice}
+      ${noticeBanner}
       <div class="wiz-preview-list">${articleHtml}</div>
       <div class="wizard-field">
-        <label class="wizard-label">주제 이름 (저장용)</label>
+        <label class="wizard-label">섹션 이름 (탭에 표시)</label>
         <input id="ob-final-name" class="wizard-input"
-          value="${escOb((wizState.topic || '').slice(0, 40))}" maxlength="60" />
+          value="${escOb(defaultName)}" maxlength="60" />
       </div>
       <div id="ob4-error" class="wizard-error" style="display:none"></div>
       <div class="wizard-actions wizard-actions-2">
@@ -690,7 +830,7 @@ function obStep4Render(result) {
 // ─── Step 5: 저장 ─────────────────────────────────────────────────────────────
 
 async function obSaveAll() {
-  const name = document.getElementById('ob-final-name')?.value.trim() || wizState.topic.slice(0, 40);
+  const name = document.getElementById('ob-final-name')?.value.trim() || wizState.sectionName || wizState.topic.slice(0, 40);
   const errEl = document.getElementById('ob4-error');
   const btn = document.getElementById('ob4-save-btn');
   btn.disabled = true; btn.textContent = '저장 중...';

@@ -1180,9 +1180,9 @@ header h1 {
 .wiz-ai-edit .wizard-label { margin-bottom: 8px; color: #4060a8; }
 
 .wiz-preview-notice {
-  width: 100%; background: #fff8e6; border: 1px solid #ffd480;
+  width: 100%; background: #f0f7ff; border: 1px solid #b3d3f7;
   border-radius: 8px; padding: 10px 14px;
-  font-size: 13px; color: #8a5a00; margin-bottom: 14px; text-align: left;
+  font-size: 13px; color: #1a5a9a; margin-bottom: 14px; text-align: left; line-height: 1.6;
 }
 .wiz-preview-list { width: 100%; display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
 .wiz-preview-card {
@@ -1200,6 +1200,75 @@ header h1 {
 .wiz-preview-summary-box code {
   background: #fff; padding: 1px 6px; border-radius: 4px;
   font-size: 12px; border: 1px solid #e0e0e0;
+}
+
+/* ── 위저드 2차 개선 스타일 ───────────────────────── */
+
+/* 목적 선택 버튼 */
+.wiz-purpose-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.wiz-purpose-btn {
+  padding: 5px 14px;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 20px;
+  background: #fff;
+  font-size: 13px;
+  color: #555;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.wiz-purpose-btn:hover { border-color: #0071e3; color: #0071e3; }
+.wiz-purpose-btn.active { border-color: #0071e3; background: #f0f7ff; color: #0071e3; font-weight: 600; }
+
+/* 키워드 칩 — 삭제 버튼 포함 */
+.wiz-chip-editable { padding-right: 4px; gap: 4px; display: inline-flex; align-items: center; }
+.wiz-chip-del {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0 2px;
+  color: inherit;
+  opacity: 0.55;
+  transition: opacity 0.15s;
+}
+.wiz-chip-del:hover { opacity: 1; }
+
+/* 참고 키워드 칩 (클릭 가능) */
+.wiz-chip-addable { cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+.wiz-chip-addable:hover { border-color: #0071e3 !important; background: #f0f7ff !important; color: #0071e3 !important; }
+.wiz-chip-plus { font-size: 12px; opacity: 0.6; }
+
+/* 키워드 직접 추가 입력 */
+.wiz-add-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  align-items: center;
+}
+.wiz-add-input { flex: 1; padding: 7px 10px !important; font-size: 13px !important; }
+.wiz-add-btn {
+  padding: 7px 14px;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 13px;
+  color: #555;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s;
+}
+.wiz-add-btn:hover { border-color: #0071e3; color: #0071e3; }
+
+/* 미리보기 경고 배너 */
+.wiz-notice-warn {
+  background: #fff8e6 !important;
+  border-color: #f5d87a !important;
+  color: #7a5a00 !important;
 }
 
 /* ── 랜딩 반응형 ──────────────────────────────────── */
